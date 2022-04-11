@@ -77,8 +77,21 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2){
+    p->passticks = p->ticks;
+    while(p->ticks){
+      p->ticks--;
+      if(p->ticks == 0 && p->handler_execute == 0){
+        // we can't do it beacese we only get address of trapframe but not get date
+        // p->timer_trapframe = p->trapframe; 
+        memmove(p->timer_trapframe, p->trapframe , sizeof(struct trapframe));
+        p->handler_execute = 1;
+        p->trapframe->epc = (uint64)p->handler; // handles timer interrupt not syscall
+      }
+    }
+    p->ticks = p->passticks;
     yield();
+  }
 
   usertrapret();
 }

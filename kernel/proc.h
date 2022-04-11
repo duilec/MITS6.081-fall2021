@@ -97,6 +97,12 @@ struct proc {
   struct proc *parent;         // Parent process
 
   // these are private to the process, so p->lock need not be held.
+  int ticks;                   //ticks of alarm
+  void (*handler)();           //handler function
+  int passticks;               //ticks from the last handler to the current handler
+  struct trapframe *timer_trapframe; // saves registers to resume in sigret 
+  int handler_execute;         // handler executing  => 1, handler no executing => 0
+
   uint64 kstack;               // Virtual address of kernel stack
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table

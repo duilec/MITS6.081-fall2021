@@ -69,7 +69,7 @@ void __attribute__ ((noinline)) foo(int i, int *j) {
 
 //
 // tests that the kernel calls the handler multiple times.
-//
+
 // tests that, when the handler returns, it returns to
 // the point in the program where the timer interrupt
 // occurred, with all registers holding the same values they
