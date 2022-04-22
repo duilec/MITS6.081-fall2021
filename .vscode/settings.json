@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "riscv.h": "c",
+        "cmath": "c",
+        "*.tcc": "c"
+    }
+}
