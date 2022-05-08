@@ -1,0 +1,2 @@
+because two threads may all need the same 'key', race will appear.
+we must has a lock for 'key'.

@@ -10,11 +10,33 @@
 #define STACK_SIZE  8192
 #define MAX_THREAD  4
 
+/* we must defind it before defining thread */
+/* otherwise, we will meet "incomplete type is not allowed" */
+struct context {
+  uint64 ra;
+  uint64 sp;
+
+  // callee-saved
+  uint64 s0;
+  uint64 s1;
+  uint64 s2;
+  uint64 s3;
+  uint64 s4;
+  uint64 s5;
+  uint64 s6;
+  uint64 s7;
+  uint64 s8;
+  uint64 s9;
+  uint64 s10;
+  uint64 s11;
+};
 
 struct thread {
   char       stack[STACK_SIZE]; /* the thread's stack */
   int        state;             /* FREE, RUNNING, RUNNABLE */
+  struct context context;       /* Saved registers for user context switches. */
 };
+
 struct thread all_thread[MAX_THREAD];
 struct thread *current_thread;
 extern void thread_switch(uint64, uint64);
@@ -62,6 +84,10 @@ thread_schedule(void)
      * Invoke thread_switch to switch from t to next_thread:
      * thread_switch(??, ??);
      */
+    // calling the first 'thread_schedule()' from main
+    // when first 'thread_switch()' reture, we will go to the address of thread_a(equal calling thread_a)
+    // then go to thread_b->_c->_a->_b->...->exit(0)
+    thread_switch((uint64)&t->context, (uint64)&next_thread->context);
   } else
     next_thread = 0;
 }
@@ -76,6 +102,12 @@ thread_create(void (*func)())
   }
   t->state = RUNNABLE;
   // YOUR CODE HERE
+  // from kernel/proc.c/allocproc(), we know we need get thread's address of ret and thread's stack pointer
+  t->context.ra = (uint64)func;
+  t->context.sp = (uint64)(t->stack + STACK_SIZE);
+  // I know we need stack to store state, but how to use it to store 'state' or other? (over)
+  // the C compiler generates code in the caller to save caller-saved registers on the stack.
+  // so we know state can be store as a caller register in thread own's stack[STACK_SIZE] 
 }
 
 void 
