@@ -102,7 +102,46 @@ e1000_transmit(struct mbuf *m)
   // the TX descriptor ring so that the e1000 sends it. Stash
   // a pointer so that it can be freed after sending.
   //
+  //ues loop ? not we only transmit a packet from multhreads
+  acquire(&e1000_lock);
+
+  uint32 tx_index = regs[E1000_TDT];
+  // tx_ring[TX_RING_SIZE].addr = (uint64)regs[E1000_TDT];
+
+  // If E1000_TXD_STAT_DD is not set in the descriptor indexed by E1000_TDT
+  // use status?
+  if ((tx_ring[tx_index].status & E1000_TXD_STAT_DD) == 0){
+    //before exit process, we must release e1000_lock 
+    release(&e1000_lock);
+    return -1;
+  }
+    
+  // where can get mbuf from descriptor? 
+  // we can get mbuf from tx_mbufs[TX_RING_SIZE]
+  if (tx_mbufs[tx_index]){
+    mbuffree(tx_mbufs[tx_index]);
+  }
   
+  // fill tx_ring (and tx_mbuf?)
+  // tx_mbufs[tx_index]->head = m->head;
+  // tx_mbufs[tx_index]->len = m->len;
+  // assign a to tx_mbufs[tx_index]? yes! we will sent it!
+  tx_mbufs[tx_index] = m;  
+  tx_ring[tx_index].addr = (uint64)m->head;
+  tx_ring[tx_index].length = m->len;
+  // binary: 1110 1111 right? NOT! we can look e1000_dev.h about it
+  tx_ring[tx_index].cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS; 
+  // struct mbuf *m_pointer = m; 
+
+
+  // regs[E1000_TDT] = (regs[E1000_TDT] + 1) % TX_RING_SIZE;
+  regs[E1000_TDT] = (tx_index + 1) % TX_RING_SIZE;
+
+  // mbuffree(m_pointer); // free pointer it in there? why don't directly free it?
+  // not free buffer by itself, free buffer by next time => line:121
+
+  release(&e1000_lock);
+
   return 0;
 }
 
@@ -115,6 +154,37 @@ e1000_recv(void)
   // Check for packets that have arrived from the e1000
   // Create and deliver an mbuf for each packet (using net_rx()).
   //
+
+  // ues loop ? we must use loop, because we always wait for each packet
+  // we don't need to use lock, because it is't parallel when e1000_rev running
+  // acquire(&e1000_lock); // to handle more than 16 packets
+  while (1) {
+    uint32 rx_index = (regs[E1000_RDT] + 1) % RX_RING_SIZE;
+
+    if ((rx_ring[rx_index].status & E1000_RXD_STAT_DD) == 0)
+      return ;
+    
+    rx_mbufs[rx_index]->len = rx_ring[rx_index].length;
+    // deliver to next level: net level
+    net_rx(rx_mbufs[rx_index]);
+
+    // struct mbuf *new_mbuf = mbufalloc(0);
+    // the rx_mbufs[rx_index] is an new mbuf that want to recevie
+    rx_mbufs[rx_index] = mbufalloc(0);
+    // rx_mbufs[rx_index]->head = (char *)rx_ring[rx_index].addr;
+    // Program its data pointer (m->head) into the descriptor.
+    // => put its data pointer (m->head) into the descriptor.
+    rx_ring[rx_index].addr = (uint64)rx_mbufs[rx_index]->head;
+    // rx_ring[rx_index].status &= 0x0;
+    rx_ring[rx_index].status = 0;
+
+    // how to borrow code? line44: for (i = 0; i < RX_RING_SIZE; i++)...
+    // use mbufalloc(0)? yes!
+    // USE E1000_RDT->R!!!
+    regs[E1000_RDT] = rx_index; // just or last? last! ues loop? yes! we will recevie next packet
+  }
+
+  // release(&e1000_lock);
 }
 
 void

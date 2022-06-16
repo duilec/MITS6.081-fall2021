@@ -235,6 +235,9 @@ dns()
   // 8.8.8.8: google's name server
   dst = (8 << 24) | (8 << 16) | (8 << 8) | (8 << 0);
 
+  // // 114.114.114.114: yidong, dianxin, liantong's normal name server
+  // dst = (114 << 24) | (114 << 16) | (114 << 8) | (114 << 0);
+
   if((fd = connect(dst, 10000, 53)) < 0){
     fprintf(2, "ping: connect() failed\n");
     exit(1);
