@@ -26,7 +26,8 @@ struct inode {
   short minor;
   short nlink;
   uint size;
-  uint addrs[NDIRECT+1];
+  uint addrs[NDIRECT + 2]; // 11 direct blocks, 1 singly indirect block and 1 double indirect block
+  struct inode *sym_link;  // target path of symbolic link
 };
 
 // map major device number to device functions.

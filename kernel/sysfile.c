@@ -228,6 +228,11 @@ sys_unlink(void)
   iupdate(ip);
   iunlockput(ip);
 
+  // we need to ip->ref-- or free symlink when we call unlink 
+  if(ip->type == T_SYMLINK){
+    iput(ip);
+  }
+
   end_op();
 
   return 0;
@@ -283,6 +288,10 @@ create(char *path, short type, short major, short minor)
   return ip;
 }
 
+// Modify the open system call to handle the case where the path refers to a symbolic link. 
+// If the file does not exist, open must fail. 
+// When a process specifies O_NOFOLLOW in the flags to open, 
+// open should open the symlink (and not follow the symbolic link).
 uint64
 sys_open(void)
 {
@@ -298,12 +307,34 @@ sys_open(void)
   begin_op();
 
   if(omode & O_CREATE){
-    ip = create(path, T_FILE, 0, 0);
-    if(ip == 0){
-      end_op();
-      return -1;
+    ip = namei(path);
+    if(ip){
+      // if it is T_SYMLINK, we just change it type
+      if(ip->type == T_SYMLINK){
+        ip->type = T_FILE;
+        ip->major = ip->minor = 0;
+      }
+      else{
+        // if not T_SYMLINK we need free it, then create a inode
+        // becasue it is a new path so we can sure 'ip->ref == 1'
+        // 'ip->ref == 1'(namei()=>namex()=>idup()=>ip->ref++=>1)
+        iput(ip);
+        ip = create(path, T_FILE, 0, 0);
+        if(ip == 0){
+          end_op();
+          return -1;
+        }        
+      }
     }
-  } else {
+    else{
+      ip = create(path, T_FILE, 0, 0);
+      if(ip == 0){
+        end_op();
+        return -1;
+      }
+    }
+  } 
+  else{
     if((ip = namei(path)) == 0){
       end_op();
       return -1;
@@ -313,6 +344,33 @@ sys_open(void)
       iunlockput(ip);
       end_op();
       return -1;
+    }
+  }
+
+  if(ip->type == T_SYMLINK){
+    // if((omode & O_NOFOLLOW)){
+    //     // do nothing
+    // }
+
+    // FOLLOW => follow symlink
+    if(!(omode & O_NOFOLLOW)){
+      // we set threshold = 10, so we only check 10 times
+      int threshold = 10;
+      for(int i = 0; i < threshold; i++){
+        iunlockput(ip);
+        ip = ip->sym_link;
+        ilock(ip);
+        if(ip->type != T_SYMLINK){
+          break;
+        }
+      }
+
+      // check: file really exists?
+      if(ip->nlink == 0){
+        iunlockput(ip);
+        end_op();
+        return -1;        
+      }
     }
   }
 
@@ -482,5 +540,54 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+uint64
+sys_symlink(void)
+{ 
+  char target[MAXPATH], path[MAXPATH];
+  struct inode *ip, *ip_target;
+
+  // get the parameter of target and path
+  if(argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0)
+    return -1;
+  
+  begin_op();
+
+  // Symlinking to nonexistent file should succeed
+  if((ip_target = namei(target)) == 0){
+    if((ip_target = create(target, T_SYMLINK, 0, 0)) == 0){ // diff char* path
+      end_op();
+      return -1;
+    }
+  }
+
+  // create ip if not exist
+  if((ip = namei(path)) == 0){ // diff char* path
+    if((ip = create(path, T_SYMLINK, 0, 0)) == 0){
+      end_op();
+      return -1;
+    }   
+  }
+
+  // not have to handle symbolic links to directories for this lab.
+  if(ip_target){
+    if(ip_target->type == T_DIR){
+      end_op();
+      return -1;
+    }
+  }
+
+  // inode(ip) with lock return from create(path) 
+  // inode(ip) without lock return from namei(path)
+  // so we need to check and maybe ilock it
+  if(!holdingsleep(&ip->lock)){
+    ilock(ip);
+  }
+  ip->sym_link = ip_target;
+  iupdate(ip);
+  iunlock(ip);
+  end_op();
   return 0;
 }

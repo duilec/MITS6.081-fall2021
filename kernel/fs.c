@@ -374,23 +374,107 @@ iunlockput(struct inode *ip)
 
 // Return the disk block address of the nth block in inode ip.
 // If there is no such block, bmap allocates one.
+// static uint
+// bmap(struct inode *ip, uint bn)
+// {
+//   uint addr, *a;
+//   struct buf *bp;
+
+//   // NDIRECT == 12
+//   // 12 direct block[0 ~ 11] => [0 ~ 11] 
+//   if(bn < NDIRECT){
+//     // find bn => ret; not find bn => alloc
+//     if((addr = ip->addrs[bn]) == 0)
+//       ip->addrs[bn] = addr = balloc(ip->dev);
+//     return addr;
+//   }
+//   bn -= NDIRECT; // eg. 12 - 12 == 0
+  
+//   // 1 indirect block[12] => [0 ~ 255]
+//   if(bn < NINDIRECT){
+//     // Load indirect block, allocating if necessary.
+    
+//     // if not addr to addrs[12]
+//     // alloc the addr of addrs[12], then put it to addres[12] and addr
+//     if((addr = ip->addrs[NDIRECT]) == 0)
+//       ip->addrs[NDIRECT] = addr = balloc(ip->dev);
+    
+//     // we maybe will alloc a block so we need to write some info
+//     // read info of addr and put it to bp
+//     // then get its data of addrs[255](a)
+//     bp = bread(ip->dev, addr);
+//     a = (uint*)bp->data;
+    
+//     // find bn => ret; not find bn => alloc and write new info of bp to log and disk(data)
+//     // why we have new info? because we alloc a[bn] which is a new info
+//     if((addr = a[bn]) == 0){
+//       a[bn] = addr = balloc(ip->dev);
+//       log_write(bp);
+//     }
+    
+//     // don't forgive release bp
+//     brelse(bp);
+//     return addr;
+//   }
+
+//   panic("bmap: out of range");
+// }
+
 static uint
 bmap(struct inode *ip, uint bn)
 {
   uint addr, *a;
   struct buf *bp;
 
+  // 11 direct block[0 ~ 10] => [0 ~ 10] 
   if(bn < NDIRECT){
+    // Load direct block, allocating if necessary.
     if((addr = ip->addrs[bn]) == 0)
       ip->addrs[bn] = addr = balloc(ip->dev);
     return addr;
   }
   bn -= NDIRECT;
-
+  
+  // NDIRECT == 11
+  // 1 singly direct block[11] => [0 ~ 255]
   if(bn < NINDIRECT){
     // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT]) == 0)
       ip->addrs[NDIRECT] = addr = balloc(ip->dev);
+    
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    
+    if((addr = a[bn]) == 0){
+      a[bn] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+    
+    brelse(bp);
+    return addr;
+  }
+  // go to double direct block[12]
+  bn -= NINDIRECT;
+
+  // 1 double direct block[12] => 256 * [0 ~ 255]
+  if(bn < NINDIRECT * NINDIRECT){
+    int mid_addr_num = bn / NINDIRECT; // get mid_addr_num and c-style: divide(/) to down 
+    bn = bn % NINDIRECT; // get real bn
+
+    // Load indirect block, allocating if necessary.
+    if((addr = ip->addrs[NDIRECT + 1]) == 0)
+      ip->addrs[NDIRECT + 1] = addr = balloc(ip->dev);
+    
+    // get the addr of mid_addr_num
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    if((addr = a[mid_addr_num]) == 0){
+      a[mid_addr_num] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+    brelse(bp);
+
+    // get the addr of real bn
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
     if((addr = a[bn]) == 0){
@@ -398,9 +482,9 @@ bmap(struct inode *ip, uint bn)
       log_write(bp);
     }
     brelse(bp);
+
     return addr;
   }
-
   panic("bmap: out of range");
 }
 
@@ -409,10 +493,11 @@ bmap(struct inode *ip, uint bn)
 void
 itrunc(struct inode *ip)
 {
-  int i, j;
+  int i, j, k;
   struct buf *bp;
-  uint *a;
+  uint *a, *botton_a;
 
+  // 11 direct block[0 ~ 10] => [0 ~ 10] 
   for(i = 0; i < NDIRECT; i++){
     if(ip->addrs[i]){
       bfree(ip->dev, ip->addrs[i]);
@@ -420,6 +505,8 @@ itrunc(struct inode *ip)
     }
   }
 
+  // NDIRECT == 11
+  // 1 singly direct block[11] => [0 ~ 255]
   if(ip->addrs[NDIRECT]){
     bp = bread(ip->dev, ip->addrs[NDIRECT]);
     a = (uint*)bp->data;
@@ -430,6 +517,30 @@ itrunc(struct inode *ip)
     brelse(bp);
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
+  }
+
+  // 1 double direct block[12] => 256 * [0 ~ 255]
+  if(ip->addrs[NDIRECT + 1]){
+    // get a of mid_addr
+    bp = bread(ip->dev, ip->addrs[NDIRECT + 1]);
+    a = (uint*)bp->data;
+    brelse(bp);
+    
+    for(j = 0; j < NINDIRECT; j++){
+      // get botton_a of botton_addr 
+      // exist block?
+      if(a[j]){
+        bp = bread(ip->dev, a[j]);
+        botton_a = (uint*)bp->data;
+        brelse(bp);
+        // free content of botton_a
+        for(k = 0; k < NINDIRECT; k++)
+          if(botton_a[k])
+            bfree(ip->dev, botton_a[k]);
+      }
+    }
+    bfree(ip->dev, ip->addrs[NDIRECT + 1]);
+    ip->addrs[NDIRECT + 1] = 0;
   }
 
   ip->size = 0;
