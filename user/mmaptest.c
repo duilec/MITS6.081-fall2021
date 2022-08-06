@@ -295,3 +295,8 @@ fork_test(void)
   printf("fork_test OK\n");
 }
 
+// usertrap(): unexpected scause 0x000000000000000d pid=3
+            // sepc=0x0000000000000076 stval=0x0000000000002000
+
+// kerneltrap 
+// you maybe read a vaible without value

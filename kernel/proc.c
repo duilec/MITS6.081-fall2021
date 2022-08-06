@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct cpu cpus[NCPU];
 
@@ -25,6 +26,17 @@ extern char trampoline[]; // trampoline.S
 // memory model when using p->parent.
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
+
+struct file {
+  enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;
+  int ref; // reference count
+  char readable;
+  char writable;
+  struct pipe *pipe; // FD_PIPE
+  struct inode *ip;  // FD_INODE and FD_DEVICE
+  uint off;          // FD_INODE
+  short major;       // FD_DEVICE
+};
 
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
@@ -281,11 +293,30 @@ fork(void)
     return -1;
   }
 
+  // virtual map vs. real map
   // Copy user memory from parent to child.
-  if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
+  int length = 0;
+  for(int i = 0; i < 16; i++){
+     if(p->vmas[i].length){
+      length += p->vmas[i].length;
+    }
+  }
+  if(uvmcopy(p->pagetable, np->pagetable, p->sz-length) < 0){
     freeproc(np);
     release(&np->lock);
     return -1;
+  }    
+  for(int i = 0; i < 16; i++){
+    if(p->vmas[i].addr){
+      np->vmas[i].f = p->vmas[i].f;
+      np->vmas[i].length = p->vmas[i].length;
+      np->vmas[i].prot = p->vmas[i].prot;
+      np->vmas[i].flags = p->vmas[i].flags;
+      np->vmas[i].offset = 0; // ret offset, becasue we maybe read before fork()
+      np->vmas[i].addr = p->vmas[i].addr;
+      np->vmas[i].oldsz = p->vmas[i].oldsz;
+      filedup(p->vmas[i].f);
+    }
   }
   np->sz = p->sz;
 
@@ -350,6 +381,32 @@ exit(int status)
       struct file *f = p->ofile[fd];
       fileclose(f);
       p->ofile[fd] = 0;
+    }
+  }
+
+  // 'as if' == 'like'
+  for(int i = 0; i < 16; i++){
+    if(p->vmas[i].addr){
+      int offset = p->vmas[i].f->off; // addr is beginning of vma, so use file->off
+      if(p->vmas[i].oldsz != p->vmas[i].addr) // addr is't beginning of vma, so use p->vmas[i].offset
+        offset = p->vmas[i].offset;  
+      
+      if(p->vmas[i].flags & MAP_SHARED){
+          begin_op();
+          ilock(p->vmas[i].f->ip);
+          writei(p->vmas[i].f->ip, 1, p->vmas[i].addr, offset, p->vmas[i].length);
+          iunlock(p->vmas[i].f->ip);
+          end_op();
+      }
+      
+      p->sz -= p->vmas[i].length;  
+      p->vmas[i].f->ref--;
+
+      pte_t *pte = walk(p->pagetable, p->vmas[i].addr, 0);
+      if((*pte & PTE_V) == 0) // don't write and uvmunmap(), only change data of vma
+        continue;        
+
+      uvmunmap(p->pagetable, p->vmas[i].addr, p->vmas[i].length/PGSIZE, 1);
     }
   }
 
