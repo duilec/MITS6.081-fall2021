@@ -6,6 +6,43 @@ This is my solution of lab in MITS6.081 fall2021. But `usertests` can't passes i
 
 Thanks to the MIT professors for making this class public!
 
+## how to use my solution of lab in local?
+
+Firstly, you should clone my repository to **your local**
+
+```bash
+git clone https://github.com/duilec/MITS6.081-fall2021.git
+```
+
+Then, you should switch branch **by determining your need** in local.
+example:
+
+```
+git switch util
+```
+
+Note: 
+
+- **I create a `main` to save `README.md` that you could ignore it**
+
+- Class support 10 labs and I add a `main` so we has 11 branch
+
+  ```bash
+  cow
+  fs
+  lock
+  main
+  mmap
+  net
+  pgtbl
+  syscall
+  thread
+  traps
+  util
+  ```
+
+  
+
 ## course introduce
 
 Catalog description: Design and implementation of operating systems, and their use as a foundation for systems programming. Topics include virtual memory; file systems; threads; context switches; kernels; interrupts; system calls; interprocess communication; coordination, and interaction between software and hardware. A multi-processor operating system for RISC-V, xv6, is used to illustrate these topics. Individual laboratory assignments involve extending the xv6 operating system, for example to support sophisticated virtual memory features and networking.
