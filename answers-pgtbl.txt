@@ -1,0 +1,17 @@
+1.
+Which other xv6 system call(s) could be made faster using this shared page? Explain how.
+
+we could speed fork() by adding "struct proc *parent" in "struct usyscall"
+in order to support "parent" to children use without trap in kernel
+
+2.
+Explain the output of `vmprint` in terms of Fig 3-4 from the text. What does page 0 contain? 
+What is in page 2? When running in user mode, could the process read/write the memory mapped by page 1?
+What does the third to last page contain?
+
+page0: date and text of process
+page1: guard page for protect stack by present page0 overflow
+page2: stack of process
+page3 to last page: heap, trapfram, trampoline
+
+
