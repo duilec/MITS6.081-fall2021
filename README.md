@@ -25,7 +25,7 @@ Note:
 
 - **I create a `main` to save `README.md` that you could ignore it**
 
-- Class support 10 labs and I add a `main` so we has 11 branch
+- Class support 10 labs and I add a `main`, so we has 11 branch
 
   ```bash
   cow
