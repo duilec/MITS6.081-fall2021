@@ -291,6 +291,8 @@ fork(void)
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
+  // copy saved mask for trace.
+  np->mask = p->mask;
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
@@ -653,4 +655,19 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+uint64
+get_nproc(void)
+{
+  uint64 nproc = 0;
+  struct proc *p;
+  /* use spinlock to avoid race(accessing 'nproc') between different threads */
+  for(p = &proc[0]; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if(p->state != UNUSED)
+      nproc++;
+    release(&p->lock);
+  }
+  return nproc;
 }
