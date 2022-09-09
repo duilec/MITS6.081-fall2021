@@ -67,5 +67,5 @@ FROM: [6.S081: Learning by doing](https://pdos.csail.mit.edu/6.S081/2020/overvie
 - [MITS6.081 fall2020 课程视频中文翻译](https://mit-public-courses-cn-translatio.gitbook.io/mit6-s081/)
 - [book-riscv-rev1 中文翻译](http://xv6.dgs.zone/tranlate_books/book-riscv-rev1/summary.html)
 - [实验内容中文翻译](http://xv6.dgs.zone/labs/requirements/summary.html)
-- 我用中文写了全部解析，放在个人博客和博客园中都有存档。
+- 我用中文写了全部个人解析，放在个人博客和博客园中。
   - [memory dot/MIT6.S081-Lab](https://duilec.github.io/categories/MIT6-S081-Lab/)，[duile/MIT6.S081-Lab](https://www.cnblogs.com/duile/tag/MIT6.S081-Lab/)
