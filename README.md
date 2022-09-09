@@ -62,12 +62,10 @@ FROM: [6.S081: Learning by doing](https://pdos.csail.mit.edu/6.S081/2020/overvie
 
   - [youtube](https://www.youtube.com/watch?v=J3LCzufEYt0&list=PLTsf9UeqkReZHXWY9yJvTwLJWYYPcKEqK) 
   - [bilibili](https://www.bilibili.com/video/BV19k4y1C7kA?from=search&seid=5542820295808098475)
-
 - [The xv6 Kernel analysis](https://www.youtube.com/watch?v=fWUJKH0RNFE&list=PLbtzT1TYeoMhTPzyTZboW_j7TPAnjv9XB) FROM [hhp3](https://www.youtube.com/user/hhp3)
-
 - [book-riscv-rev2](https://pdos.csail.mit.edu/6.828/2021/xv6/book-riscv-rev2.pdf), [book-riscv-rev1](https://pdos.csail.mit.edu/6.828/2020/xv6/book-riscv-rev1.pdf)
 - [MITS6.081 fall2020 课程视频中文翻译](https://mit-public-courses-cn-translatio.gitbook.io/mit6-s081/)
-
 - [book-riscv-rev1 中文翻译](http://xv6.dgs.zone/tranlate_books/book-riscv-rev1/summary.html)
 - [实验内容中文翻译](http://xv6.dgs.zone/labs/requirements/summary.html)
-
+- 我用中文写了全部解析，放在个人博客和博客园中都有存档。
+  - [memory dot/MIT6.S081-Lab](https://duilec.github.io/categories/MIT6-S081-Lab/)，[duile/MIT6.S081-Lab](https://www.cnblogs.com/duile/tag/MIT6.S081-Lab/)
