@@ -18,7 +18,9 @@ Then, you should switch branch **by determining your need** in local.
 example:
 
 ```
-git switch util
+git fetch
+git checkout util
+make clean
 ```
 
 Note: 
